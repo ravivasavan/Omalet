@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="icon.png" alt="Omalet" width="120">
-
 # Omalet
 
 **Owlet Smart Sock 3 vitals on the Omarchy bar.**
@@ -89,15 +87,15 @@ item `service=owlet`.
 
 ## Screenshots
 
-Tokyo Night, Quattro wallpaper. Each bento state is a 4:3 export from `previews/`.
+Tokyo Night on the Omarchy Quattro wallpaper. 16:9.
 
-| Tray | Vitals | Charging |
-| --- | --- | --- |
-| <img src="screenshots/tray.png" alt="Owlet heart rate and oxygen on the bar" width="280"> | <img src="screenshots/vitals.png" alt="Six-tile vitals bento" width="280"> | <img src="screenshots/charging.png" alt="Single charging tile" width="280"> |
+| Tray | Vitals |
+| --- | --- |
+| <img src="screenshots/tray.png" alt="Heart rate and oxygen on the bar" width="400"> | <img src="screenshots/vitals.png" alt="Six-tile vitals bento" width="400"> |
 
-| Oxygen alert | Heart-rate alert | Sign in |
-| --- | --- | --- |
-| <img src="screenshots/alert.png" alt="Blood oxygen tile flashing on a low-oxygen alert" width="280"> | <img src="screenshots/alert-heart.png" alt="Heart-rate tile flashing" width="280"> | <img src="screenshots/login.png" alt="Owlet sign-in panel" width="280"> |
+| Charging | Alert |
+| --- | --- |
+| <img src="screenshots/charging.png" alt="Charging tile" width="400"> | <img src="screenshots/alert.png" alt="Blood oxygen alert" width="400"> |
 
 ## Development
 

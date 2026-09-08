@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 *.tmp
 .DS_Store
+icon.png
+previews/
+screenshots/alert-heart.png
+screenshots/alert-battery.png
+screenshots/sock-off.png
+screenshots/login.png
