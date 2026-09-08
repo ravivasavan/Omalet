@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "ravivasavan.owlet",
+  "name": "Omalet",
+  "version": "1.0.0",
+  "author": "Ravi Vasavan",
+  "license": "MIT",
+  "description": "Owlet Smart Sock 3 vitals on the Omarchy bar: heart rate, blood oxygen, battery, skin temperature, movement, sleep, and desktop alerts. Unofficial Owlet cloud API; not a substitute for the Owlet app.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omalet",
+    "description": "Sock 3 heart rate and oxygen pill with a vitals popup and desktop alerts",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshSeconds": 10
+    },
+    "schema": [
+      {
+        "key": "refreshSeconds",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 5,
+        "max": 60,
+        "step": 5,
+        "defaultValue": 10
+      }
+    ]
+  }
+}
