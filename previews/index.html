@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Omalet states</title>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/bar.css">
+  <link rel="stylesheet" href="css/panel.css">
+</head>
+<body>
+  <div class="scene">
+    <div class="wallpaper" aria-hidden="true"></div>
+
+    <header class="bar">
+      <div class="bar-left">
+        <span class="bar-item" id="menu-icon"></span>
+        <span class="bar-item workspaces">
+          <span class="ws-active">1</span>
+          <span>2</span>
+          <span>3</span>
+        </span>
+      </div>
+      <div class="bar-center">Tuesday 22:17</div>
+      <div class="bar-right">
+        <span class="owlet-pill" id="owlet-pill"></span>
+        <span class="bar-item sys" id="sys-icons"></span>
+      </div>
+    </header>
+
+    <section class="panel" id="panel">
+      <div class="stack">
+        <div class="bento" id="bento"></div>
+        <div class="charging-tile" id="charging" style="display:none">
+          <span class="tile-icon" id="charging-icon"></span>
+          <div class="charging-copy">
+            <span id="charging-text">Charging</span><span class="dots"><span class="dot-1">.</span><span class="dot-2">.</span><span class="dot-3">.</span></span>
+          </div>
+        </div>
+        <div id="login" style="display:none">
+          <div class="stack">
+            <div class="login-kicker">OWLET SIGN IN</div>
+            <input class="field" type="text" placeholder="Email" value="" readonly>
+            <div class="login-row">
+              <input class="field" type="password" placeholder="Password" value="" readonly>
+              <div class="login-go" id="login-go"></div>
+            </div>
+          </div>
+        </div>
+        <div class="alert-lines" id="alerts"></div>
+      </div>
+    </section>
+  </div>
+
+  <nav class="toolbar" id="toolbar"></nav>
+  <script type="module">
+    import { boot } from "./js/render.js"
+    boot()
+  </script>
+</body>
+</html>

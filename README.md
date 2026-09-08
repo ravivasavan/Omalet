@@ -89,9 +89,15 @@ item `service=owlet`.
 
 ## Screenshots
 
-| Vitals | Charging | Alert |
+Tokyo Night, Quattro wallpaper. Each bento state is a 4:3 export from `previews/`.
+
+| Tray | Vitals | Charging |
 | --- | --- | --- |
-| <img src="screenshots/vitals.png" alt="Six-tile vitals bento" width="280"> | <img src="screenshots/charging.png" alt="Single charging tile" width="280"> | <img src="screenshots/alert.png" alt="Oxygen tile pulsing on a low-oxygen alert" width="280"> |
+| <img src="screenshots/tray.png" alt="Owlet heart rate and oxygen on the bar" width="280"> | <img src="screenshots/vitals.png" alt="Six-tile vitals bento" width="280"> | <img src="screenshots/charging.png" alt="Single charging tile" width="280"> |
+
+| Oxygen alert | Heart-rate alert | Sign in |
+| --- | --- | --- |
+| <img src="screenshots/alert.png" alt="Blood oxygen tile flashing on a low-oxygen alert" width="280"> | <img src="screenshots/alert-heart.png" alt="Heart-rate tile flashing" width="280"> | <img src="screenshots/login.png" alt="Owlet sign-in panel" width="280"> |
 
 ## Development
 

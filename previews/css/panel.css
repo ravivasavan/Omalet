@@ -1,0 +1,155 @@
+.panel {
+  position: absolute;
+  top: calc(var(--bar-h) + var(--bar-gap));
+  right: 18px;
+  z-index: 6;
+  width: var(--panel-w);
+  padding: var(--panel-pad);
+  border: var(--panel-border) solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.panel[hidden] { display: none; }
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.bento {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+}
+
+.tile,
+.charging-tile {
+  position: relative;
+  height: var(--tile-h);
+  border-radius: var(--tile-radius);
+  background: var(--tile-fill);
+  border: 1px solid var(--tile-border);
+  overflow: hidden;
+}
+
+.tile-icon {
+  position: absolute;
+  top: var(--icon-inset);
+  left: var(--icon-inset);
+  font-size: var(--body);
+  color: var(--dim);
+  line-height: 1;
+}
+
+.tile-copy {
+  position: absolute;
+  left: var(--icon-inset);
+  right: var(--icon-inset);
+  bottom: var(--icon-inset);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tile-value {
+  font-size: var(--display);
+  font-weight: 700;
+  color: var(--fg-bright);
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-value.is-text { font-size: var(--title); }
+
+.tile-label {
+  font-size: var(--caption);
+  color: var(--dim);
+  line-height: 1.2;
+}
+
+.tile.is-alert .tile-icon,
+.tile.is-alert .tile-value { color: var(--urgent); }
+
+.tile.is-alert::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--urgent);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.charging-tile .tile-icon { color: var(--dim); }
+
+.charging-copy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--title);
+  font-weight: 700;
+  color: var(--fg-bright);
+  letter-spacing: 0;
+}
+
+.charging-copy .dots { display: inline-flex; }
+.charging-copy .dots span { width: 0.55em; text-align: center; }
+
+.alert-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alert-line {
+  color: var(--urgent);
+  font-size: var(--body);
+}
+
+.login-kicker {
+  font-size: var(--caption);
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+
+.field {
+  height: 30px;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--control-border);
+  background: var(--control-fill);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: var(--body);
+  padding: 0 10px;
+}
+
+.field::placeholder { color: var(--muted); }
+
+.login-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.login-row .field { width: calc(100% - 34px); }
+
+.login-go {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--control-border);
+  background: var(--control-fill);
+  color: var(--fg);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}

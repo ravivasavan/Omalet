@@ -1,0 +1,97 @@
+/* Omarchy Tokyo Night tokens, 12px base, spacing scale 1. */
+
+@font-face {
+  font-family: "JetBrainsMono Nerd Font";
+  src: local("JetBrainsMono Nerd Font"), local("JetBrainsMono NF");
+  font-weight: 400;
+  font-style: normal;
+}
+
+:root {
+  --bg: #1a1b26;
+  --bg-dark: #13141c;
+  --fg: #a9b1d6;
+  --fg-bright: #c0caf5;
+  --dim: #8288a5;
+  --muted: #565f89;
+  --accent: #7aa2f7;
+  --urgent: #f7768e;
+  --tile-fill: rgba(169, 177, 214, 0.04);
+  --tile-border: rgba(169, 177, 214, 0.10);
+  --control-fill: rgba(169, 177, 214, 0.04);
+  --control-border: rgba(169, 177, 214, 0.40);
+
+  --radius: 12px;
+  --tile-radius: 12px;
+  --bar-h: 26px;
+  --bar-gap: 4px;
+  --panel-w: 320px;
+  --panel-pad: 14px;
+  --panel-border: 2px;
+  --gap: 8px;
+  --tile-h: 96px;
+  --icon-inset: 10px;
+
+  --font: "JetBrainsMono Nerd Font", "JetBrainsMono NF", ui-monospace, monospace;
+  --caption: 10px;
+  --body: 12px;
+  --title: 14px;
+  --display: 24px;
+
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0e0e14;
+  font-family: var(--font);
+  font-size: var(--body);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+body.capture .toolbar { display: none !important; }
+
+.scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.wallpaper {
+  position: absolute;
+  inset: 0;
+  background: #1a1020 46% 42% / cover no-repeat;
+  background-image: url("../assets/quattro.jpg");
+}
+
+.toolbar {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 640px;
+}
+
+.toolbar button {
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--fg-bright);
+  background: rgba(26, 27, 38, 0.82);
+  border: 1px solid rgba(122, 162, 247, 0.45);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.toolbar button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--bg);
+}
