@@ -104,4 +104,89 @@ assert.strictEqual(oxygenTiles.oxygen, true)
 assert.strictEqual(oxygenTiles.heart, false)
 assert.strictEqual(Model.showChargingPanel(monitoring), false)
 
+assert.strictEqual(monitoring.camera.present, false)
+assert.strictEqual(Model.showCameraHero(monitoring, true, false), false)
+assert.strictEqual(Model.showCameraHero(monitoring, true, true), true)
+assert.strictEqual(Model.showCameraHero(login, true, true), false)
+assert.strictEqual(Model.showCameraHero(monitoring, false, true), false)
+
+const withCamera = Model.parseState(JSON.stringify({
+  ok: true,
+  status: "monitoring",
+  camera: {
+    present: true,
+    id: "OCA123",
+    name: "Nursery",
+    status: "online",
+    source: "url",
+    snapshot_path: "/home/ravi/.local/state/omarchy/owlet-camera.jpg",
+    fetched_at: 1700000000,
+    error: ""
+  }
+}))
+assert.strictEqual(withCamera.camera.present, true)
+assert.strictEqual(withCamera.camera.name, "Nursery")
+assert.ok(withCamera.camera.snapshotPath.endsWith("owlet-camera.jpg"))
+assert.strictEqual(Model.showCameraHero(withCamera, true, false), true)
+assert.strictEqual(Model.cameraAgeText(1700000000, 1700000010), "just now")
+assert.strictEqual(Model.cameraAgeText(1700000000, 1700000030), "30s ago")
+assert.strictEqual(Model.cameraCaption(withCamera, 1700000030, true), "Nursery · 30s ago")
+
+const noStills = Model.parseState(JSON.stringify({
+  ok: true,
+  status: "charging",
+  camera: { present: true, name: "Owlet Cam", source: "owlet" }
+}))
+assert.strictEqual(Model.showCameraHero(noStills, true, false), true)
+assert.strictEqual(Model.cameraCaption(noStills, 1700000000, false), "Owlet Cam · no stills yet")
+
+const noCam = Model.parseState(JSON.stringify({
+  camera: { source: "owlet", status: "none", present: false }
+}))
+assert.strictEqual(noCam.camera.status, "none")
+assert.strictEqual(Model.cameraCaption(noCam, 1700000000, false), "No Owlet Cam on this account")
+assert.strictEqual(Model.showCameraHero(noCam, true, false), false)
+
+const evilCamera = Model.parseState(JSON.stringify({
+  camera: {
+    present: true,
+    name: "Nursery\ncam",
+    snapshot_path: "/tmp/../etc/passwd",
+    error: "x".repeat(200),
+    source: "javascript:alert(1)"
+  }
+}))
+assert.ok(!evilCamera.camera.name.includes("\n"))
+assert.strictEqual(evilCamera.camera.snapshotPath, "")
+assert.ok(evilCamera.camera.error.length <= 80)
+assert.strictEqual(evilCamera.camera.source, "")
+assert.strictEqual(Model.safeSnapshotPath("/home/x/.local/state/omarchy/owlet-camera.jpg"), "/home/x/.local/state/omarchy/owlet-camera.jpg")
+assert.strictEqual(Model.safeSnapshotPath("owlet-camera.jpg"), "")
+
+const signedOutMenu = Model.contextMenuItems(login, "1.1.0", "parent@example.com")
+assert.strictEqual(signedOutMenu[0].id, "login")
+assert.strictEqual(signedOutMenu[0].label, "Sign in")
+assert.strictEqual(signedOutMenu[1].id, "refresh")
+assert.strictEqual(signedOutMenu[2].id, "detach")
+assert.strictEqual(signedOutMenu[2].label, "Detach camera")
+assert.strictEqual(signedOutMenu[3].kind, "separator")
+assert.strictEqual(signedOutMenu[4].label, "Omalet 1.1.0")
+assert.strictEqual(signedOutMenu.some(function(item) { return item.id === "account" }), false)
+
+const attachedMenu = Model.contextMenuItems(monitoring, "1.1.0", "parent@example.com", true)
+assert.strictEqual(attachedMenu[2].id, "attach")
+assert.strictEqual(attachedMenu[2].label, "Attach camera")
+
+const signedInMenu = Model.contextMenuItems(monitoring, "1.1.0", "parent@example.com")
+assert.strictEqual(signedInMenu[0].id, "logout")
+assert.strictEqual(signedInMenu[0].label, "Sign out")
+assert.strictEqual(signedInMenu[signedInMenu.length - 1].id, "account")
+assert.strictEqual(signedInMenu[signedInMenu.length - 1].label, "parent@example.com")
+
+const fallbackMenu = Model.contextMenuItems(null, "", "")
+assert.strictEqual(fallbackMenu[0].id, "login")
+assert.strictEqual(fallbackMenu[2].id, "detach")
+assert.strictEqual(fallbackMenu[4].label, "Omalet")
+assert.strictEqual(fallbackMenu.some(function(item) { return item.id === "account" }), false)
+
 console.log("ok")

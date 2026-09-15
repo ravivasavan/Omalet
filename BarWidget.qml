@@ -47,6 +47,14 @@ BarWidget {
     if (panelLoader.item && panelLoader.item.signIn) panelLoader.item.signIn()
   }
 
+  function signOut() {
+    if (panelLoader.item && panelLoader.item.signOut) panelLoader.item.signOut()
+  }
+
+  function toggleMenu() {
+    if (panelLoader.item && panelLoader.item.toggleMenu) panelLoader.item.toggleMenu()
+  }
+
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
@@ -64,6 +72,8 @@ BarWidget {
     }
   }
 
+  // Left click opens the vitals bento. Right click opens sign-in / sign-out.
+  // Middle click refreshes.
   WidgetButton {
     id: button
     anchors.fill: parent
@@ -80,6 +90,7 @@ BarWidget {
     onPressed: function(b) {
       if (!root.bar) return
       if (b === Qt.MiddleButton) root.refresh()
+      else if (b === Qt.RightButton) root.toggleMenu()
       else root.togglePanel()
     }
 

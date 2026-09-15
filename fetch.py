@@ -10,6 +10,8 @@ import stat
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -29,8 +31,15 @@ STATE_FILE = STATE_DIR / "owlet.json"
 TOKEN_FILE = STATE_DIR / "owlet-tokens.json"
 AUTH_FILE = STATE_DIR / "owlet-auth.json"
 ALERT_FILE = STATE_DIR / "owlet-alerts.json"
+SNAPSHOT_FILE = STATE_DIR / "owlet-camera.jpg"
+CAMERA_META_FILE = STATE_DIR / "owlet-camera.json"
 DEFAULT_EMAIL = ""
 DEFAULT_REGION = "world"
+CAMERA_FIREBASE_KEY = "AIzaSyCx17leGPCKu5tZ1BLPni5LbAAlVvnNxZQ"
+CAMERA_DEVICES_URL = "https://devices-public.owletdata.com/v2"
+CAMERA_DISCOVER_EVERY = 15 * 60
+CAMERA_REDISCOVER_EMPTY = 60
+SNAPSHOT_MAX_BYTES = 8 * 1024 * 1024
 
 SLEEP_STATES = {0: "unknown", 1: "awake", 8: "light sleep", 15: "deep sleep"}
 
@@ -117,6 +126,14 @@ def atomic_write(path: Path, payload: dict[str, Any], mode: int = 0o600) -> None
     tmp.replace(path)
 
 
+def atomic_write_bytes(path: Path, payload: bytes, mode: int = 0o600) -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_bytes(payload)
+    os.chmod(tmp, mode)
+    tmp.replace(path)
+
+
 def read_json(path: Path) -> dict[str, Any]:
     try:
         raw = path.read_text()
@@ -174,6 +191,33 @@ def save_tokens(tokens: dict[str, Any] | None) -> None:
             "expiry": tokens.get("expiry"),
             "refresh": tokens.get("refresh"),
         },
+    )
+
+
+def clear_secret(email: str) -> None:
+    cmd = ["secret-tool", "clear", "service", "owlet"]
+    if email:
+        cmd.extend(["username", email])
+    try:
+        subprocess.run(cmd, check=False, capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def logout() -> dict[str, Any]:
+    email, _region = load_auth()
+    clear_secret(email)
+    for path in (TOKEN_FILE, ALERT_FILE, SNAPSHOT_FILE):
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return empty_state(
+        status="needs_login",
+        needs_login=True,
+        error="",
+        label="Omalet",
+        camera=empty_camera(),
     )
 
 
@@ -290,6 +334,56 @@ def notify(spec: dict[str, str]) -> None:
         pass
 
 
+def empty_camera(**overrides: Any) -> dict[str, Any]:
+    camera = {
+        "present": False,
+        "id": "",
+        "name": "",
+        "status": "",
+        "source": "",
+        "snapshot_path": "",
+        "error": "",
+        "fetched_at": 0,
+        "discovered_at": 0,
+    }
+    camera.update(overrides)
+    return camera
+
+
+def sanitize_camera(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return empty_camera()
+    source = str(raw.get("source") or "")
+    if source not in ("url", "owlet"):
+        source = ""
+    snapshot = str(raw.get("snapshot_path") or "")
+    if ".." in snapshot or "owlet-camera.jpg" not in snapshot:
+        snapshot = ""
+    try:
+        fetched_at = int(raw.get("fetched_at") or 0)
+    except (TypeError, ValueError):
+        fetched_at = 0
+    try:
+        discovered_at = int(raw.get("discovered_at") or 0)
+    except (TypeError, ValueError):
+        discovered_at = 0
+    return empty_camera(
+        present=raw.get("present") is True or bool(snapshot),
+        id=str(raw.get("id") or "")[:40],
+        name=str(raw.get("name") or "")[:40],
+        status=str(raw.get("status") or "")[:24],
+        source=source,
+        snapshot_path=snapshot[:240],
+        error=str(raw.get("error") or "")[:80],
+        fetched_at=fetched_at,
+        discovered_at=discovered_at,
+    )
+
+
+def previous_camera() -> dict[str, Any]:
+    return sanitize_camera(read_json(STATE_FILE).get("camera"))
+
+
 def empty_state(**overrides: Any) -> dict[str, Any]:
     state = {
         "ok": False,
@@ -302,15 +396,277 @@ def empty_state(**overrides: Any) -> dict[str, Any]:
         "vitals": {},
         "alerts": {},
         "alert_count": 0,
+        "camera": previous_camera(),
     }
     state.update(overrides)
     if not state.get("label"):
         state["label"] = "Owlet"
+    if "camera" not in overrides:
+        state["camera"] = previous_camera()
     return state
 
 
 def write_state(state: dict[str, Any]) -> None:
+    if "camera" not in state:
+        state["camera"] = previous_camera()
+    else:
+        state["camera"] = sanitize_camera(state.get("camera"))
     atomic_write(STATE_FILE, state)
+
+
+def snapshot_url_allowed(url: str) -> bool:
+    return url.startswith("http://") or url.startswith("https://")
+
+
+def download_snapshot(url: str) -> bytes:
+    if not snapshot_url_allowed(url) or len(url) > 500:
+        raise ValueError("Camera URL must be http or https")
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Omalet/1.1", "Accept": "image/jpeg,image/png,image/*"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            content_type = str(response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            data = response.read(SNAPSHOT_MAX_BYTES + 1)
+    except urllib.error.HTTPError as err:
+        raise ValueError("Camera still failed") from err
+    except urllib.error.URLError as err:
+        raise ValueError("Could not reach camera") from err
+    except TimeoutError as err:
+        raise ValueError("Camera still timed out") from err
+    if len(data) > SNAPSHOT_MAX_BYTES:
+        raise ValueError("Camera still is too large")
+    jpeg = data[:3] == b"\xff\xd8\xff"
+    png = data[:8] == b"\x89PNG\r\n\x1a\n"
+    if not jpeg and not png:
+        if content_type.startswith("image/"):
+            raise ValueError("Camera still is not a JPEG")
+        raise ValueError("Camera still is not an image")
+    return data
+
+
+def merge_state_camera(camera: dict[str, Any]) -> dict[str, Any]:
+    state = read_json(STATE_FILE)
+    if not state:
+        state = empty_state(camera=camera)
+    else:
+        state["camera"] = camera
+    write_state(state)
+    return state
+
+
+def should_discover_camera(camera: dict[str, Any]) -> bool:
+    discovered_at = camera.get("discovered_at") or 0
+    try:
+        discovered_at = int(discovered_at)
+    except (TypeError, ValueError):
+        discovered_at = 0
+    if discovered_at <= 0:
+        return True
+    age = time.time() - discovered_at
+    if camera.get("present"):
+        return age >= CAMERA_DISCOVER_EVERY
+    return age >= CAMERA_REDISCOVER_EMPTY
+
+
+def camera_identity(device: dict[str, Any]) -> str:
+    ident = str(device.get("id") or "").strip()
+    name = str(device.get("name") or "").strip()
+    if ident:
+        return ident
+    if "/" in name:
+        return name.rsplit("/", 1)[-1]
+    return name
+
+
+def is_owlet_camera_device(device: dict[str, Any]) -> bool:
+    if not isinstance(device, dict):
+        return False
+    ident = camera_identity(device).upper()
+    dtype = str(device.get("type") or device.get("deviceType") or "").lower()
+    name = str(device.get("name") or "").lower()
+    if "sock" in dtype or ident.startswith("AC000"):
+        return False
+    if "camera" in dtype:
+        return True
+    if ident.startswith(("OCA", "OCC", "OC0", "OC1", "OC2")):
+        return True
+    if "oca" in name or "occ" in name or "/oc" in name:
+        return True
+    return False
+
+
+def camera_from_device(device: dict[str, Any]) -> dict[str, Any]:
+    ident = camera_identity(device)
+    label = str(
+        device.get("displayName")
+        or device.get("label")
+        or device.get("name")
+        or device.get("product_name")
+        or ""
+    )
+    if not label or label.startswith("dsns/") or label.lower().startswith("owletcam-"):
+        label = "Owlet Cam"
+    return empty_camera(
+        present=True,
+        id=ident[:40],
+        name=label[:40],
+        status=str(device.get("status") or "online")[:24],
+        source="owlet",
+        discovered_at=int(time.time()),
+    )
+
+
+def load_camera_meta() -> dict[str, str]:
+    data = read_json(CAMERA_META_FILE)
+    return {
+        "id": str(data.get("id") or "")[:40],
+        "name": str(data.get("name") or "")[:40],
+        "firmware": str(data.get("firmware") or "")[:24],
+        "ip": str(data.get("ip") or "")[:40],
+    }
+
+
+def discover_lan_owlet_cam() -> dict[str, Any] | None:
+    """Find an Owlet Cam by reverse-DNS of LAN neighbors (GL.iNet .lan names)."""
+    try:
+        result = subprocess.run(
+            ["ip", "neigh", "show"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    import socket
+
+    seen: set[str] = set()
+    for line in result.stdout.splitlines():
+        ip = line.split()[0] if line.split() else ""
+        if ip.count(".") != 3 or ip in seen:
+            continue
+        seen.add(ip)
+        try:
+            host, _, _ = socket.gethostbyaddr(ip)
+        except OSError:
+            continue
+        label = str(host).split(".")[0]
+        if not label.lower().startswith("owletcam-"):
+            continue
+        ident = label.split("-", 1)[-1]
+        if not ident:
+            continue
+        meta = load_camera_meta()
+        name = meta["name"] if meta.get("id") == ident and meta.get("name") else "Owlet Cam"
+        return camera_from_device({"id": ident, "name": name, "status": "online", "deviceType": "camera"})
+    return None
+
+
+async def discover_owlet_camera(email: str, password: str) -> dict[str, Any] | None:
+    if not email or not password:
+        return None
+    try:
+        import aiohttp
+    except ImportError:
+        return None
+    timeout = aiohttp.ClientTimeout(total=10)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                "https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword"
+                f"?key={CAMERA_FIREBASE_KEY}",
+                json={
+                    "email": email,
+                    "password": password,
+                    "returnSecureToken": True,
+                },
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                auth = await resp.json()
+            jwt = str(auth.get("idToken") or "")
+            account_id = str(auth.get("localId") or "")
+            if not jwt or not account_id:
+                return None
+            async with session.get(
+                f"{CAMERA_DEVICES_URL}/accounts/{account_id}/devices",
+                headers={"Authorization": f"Bearer {jwt}", "Content-Type": "application/json"},
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                payload = await resp.json()
+    except Exception:  # noqa: BLE001 — discovery must never fail vitals
+        return None
+
+    devices = payload.get("devices") or payload.get("cameras") or payload
+    if not isinstance(devices, list):
+        return empty_camera(status="none", source="owlet", discovered_at=int(time.time()))
+    for device in devices:
+        if is_owlet_camera_device(device):
+            return camera_from_device(device)
+    return empty_camera(status="none", source="owlet", discovered_at=int(time.time()))
+
+
+async def attach_discovered_camera(state: dict[str, Any], email: str) -> dict[str, Any]:
+    camera = sanitize_camera(state.get("camera") or previous_camera())
+    if SNAPSHOT_FILE.is_file() and not camera.get("snapshot_path"):
+        camera["snapshot_path"] = str(SNAPSHOT_FILE)
+        camera["present"] = True
+    lan = discover_lan_owlet_cam()
+    if lan:
+        discovered = lan
+    elif not should_discover_camera(camera):
+        state["camera"] = camera
+        return state
+    else:
+        password = secret_password(email) if email else None
+        discovered = None
+        if password:
+            discovered = await discover_owlet_camera(email, password)
+        if discovered is None:
+            state["camera"] = camera
+            return state
+        if not discovered.get("present"):
+            known = str(camera.get("id") or "").upper()
+            if known.startswith(("OCC", "OCA")):
+                discovered = camera
+                discovered["discovered_at"] = int(time.time())
+    if discovered.get("present"):
+        if camera.get("snapshot_path"):
+            discovered["snapshot_path"] = camera["snapshot_path"]
+            discovered["fetched_at"] = camera.get("fetched_at") or 0
+        if camera.get("error") and not discovered.get("error"):
+            discovered["error"] = camera["error"]
+        if camera.get("source") == "url":
+            discovered["source"] = "url"
+        if camera.get("name") and not discovered.get("name"):
+            discovered["name"] = camera["name"]
+    state["camera"] = discovered
+    return state
+
+
+def camera_from_snapshot(error: str = "") -> dict[str, Any]:
+    camera = previous_camera()
+    now = int(time.time())
+    if error:
+        camera["error"] = error[:80]
+        camera["source"] = camera.get("source") or "url"
+        return camera
+    camera.update(
+        {
+            "present": True,
+            "source": "url" if camera.get("source") != "owlet" else camera.get("source") or "url",
+            "snapshot_path": str(SNAPSHOT_FILE),
+            "error": "",
+            "fetched_at": now,
+            "status": camera.get("status") or "online",
+            "name": camera.get("name") or "Camera",
+        }
+    )
+    return camera
 
 
 def build_vitals(properties: dict[str, Any]) -> dict[str, Any]:
@@ -415,7 +771,7 @@ async def poll() -> dict[str, Any]:
         status = status_for(properties, sock.connection_status)
         vitals = build_vitals(properties)
         active_alerts = [key for key, on in alerts.items() if on]
-        return {
+        state = {
             "ok": True,
             "status": status,
             "error": "",
@@ -433,11 +789,47 @@ async def poll() -> dict[str, Any]:
             "alert_names": active_alerts,
             "alert_count": len(active_alerts),
         }
+        return await attach_discovered_camera(state, email)
     finally:
         await api.close()
 
 
+def grab_native_still() -> bytes:
+    from tutk_snapshot import grab
+
+    return grab()
+
+
+async def camera_poll() -> dict[str, Any]:
+    url = sys.stdin.read().split("\n", 1)[0].strip()
+    try:
+        if url:
+            data = await asyncio.to_thread(download_snapshot, url)
+        else:
+            data = await asyncio.to_thread(grab_native_still)
+        atomic_write_bytes(SNAPSHOT_FILE, data)
+        return merge_state_camera(camera_from_snapshot())
+    except ValueError as err:
+        return merge_state_camera(camera_from_snapshot(str(err) or "Camera still failed"))
+    except Exception as err:  # noqa: BLE001 — fail closed into the widget
+        message = str(err) or "Camera still failed"
+        return merge_state_camera(camera_from_snapshot(message[:80]))
+
+
 async def main() -> int:
+    if "--logout" in sys.argv:
+        state = logout()
+        write_state(state)
+        return 0
+
+    if "--camera" in sys.argv:
+        try:
+            state = await asyncio.wait_for(camera_poll(), timeout=40)
+        except asyncio.TimeoutError:
+            state = merge_state_camera(camera_from_snapshot("Camera still timed out"))
+        camera = state.get("camera") if isinstance(state.get("camera"), dict) else {}
+        return 0 if state and not camera.get("error") else 1
+
     try:
         state = await asyncio.wait_for(poll(), timeout=25)
     except OwletCredentialsError:
