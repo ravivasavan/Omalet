@@ -33,9 +33,9 @@ AUTH_FILE = STATE_DIR / "owlet-auth.json"
 ALERT_FILE = STATE_DIR / "owlet-alerts.json"
 SNAPSHOT_FILE = STATE_DIR / "owlet-camera.jpg"
 CAMERA_META_FILE = STATE_DIR / "owlet-camera.json"
+FIREBASE_KEY_FILE = STATE_DIR / "owlet-firebase.key"
 DEFAULT_EMAIL = ""
 DEFAULT_REGION = "world"
-CAMERA_FIREBASE_KEY = "AIzaSyCx17leGPCKu5tZ1BLPni5LbAAlVvnNxZQ"
 CAMERA_DEVICES_URL = "https://devices-public.owletdata.com/v2"
 CAMERA_DISCOVER_EVERY = 15 * 60
 CAMERA_REDISCOVER_EMPTY = 60
@@ -565,8 +565,26 @@ def discover_lan_owlet_cam() -> dict[str, Any] | None:
     return None
 
 
+def camera_firebase_key() -> str:
+    """Owlet Care's Firebase web API key. Not ours; do not commit it.
+
+    GitHub secret scanning flags Google API keys. The official app ships the same
+    client identifier. Load from OWLET_FIREBASE_WEB_KEY or a 0600 local file.
+    """
+    env = os.environ.get("OWLET_FIREBASE_WEB_KEY", "").strip()
+    if env:
+        return env
+    try:
+        return FIREBASE_KEY_FILE.read_text().strip()
+    except OSError:
+        return ""
+
+
 async def discover_owlet_camera(email: str, password: str) -> dict[str, Any] | None:
     if not email or not password:
+        return None
+    firebase_key = camera_firebase_key()
+    if not firebase_key:
         return None
     try:
         import aiohttp
@@ -577,7 +595,7 @@ async def discover_owlet_camera(email: str, password: str) -> dict[str, Any] | N
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(
                 "https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword"
-                f"?key={CAMERA_FIREBASE_KEY}",
+                f"?key={firebase_key}",
                 json={
                     "email": email,
                     "password": password,

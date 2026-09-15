@@ -49,6 +49,7 @@ These stay on the machine only:
 
 - `~/.local/share/omarchy/owlet/lib/libIOTCAPIs_ALL.so` — TUTK 4.2.1.1
 - `~/.local/share/omarchy/owlet/tutk.key` — TUTK SDK license used to init the lib
+- `~/.local/state/omarchy/owlet-firebase.key` — Owlet Care Firebase web API key (mode 0600). Optional; only used for the cloud device list. LAN discovery does not need it. Override with `OWLET_FIREBASE_WEB_KEY`.
 - `~/.local/state/omarchy/owlet-camera.json` — cam id, IP, **P2P secrets** (mode 0600)
 - `~/.config/hypr/hyprland.lua` — window rule: float + pin title `^Omalet Camera$`
 
