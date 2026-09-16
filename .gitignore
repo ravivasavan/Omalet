@@ -10,3 +10,7 @@ screenshots/alert-heart.png
 screenshots/alert-battery.png
 screenshots/sock-off.png
 screenshots/login.png
+test_model.js
+/lib/
+tutk.key
+owlet-firebase.key

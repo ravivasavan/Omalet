@@ -6,6 +6,20 @@ function clean(value, fallback, maxLen) {
   return text.length > limit ? text.slice(0, limit) : text
 }
 
+function emptyCamera() {
+  return {
+    present: false,
+    id: "",
+    name: "",
+    status: "",
+    source: "",
+    snapshotPath: "",
+    error: "",
+    fetchedAt: 0,
+    discoveredAt: 0
+  }
+}
+
 function emptyState() {
   return {
     ok: false,
@@ -19,7 +33,35 @@ function emptyState() {
     vitals: {},
     alerts: {},
     alertNames: [],
-    alertCount: 0
+    alertCount: 0,
+    camera: emptyCamera()
+  }
+}
+
+function safeSnapshotPath(value) {
+  var text = clean(value, "", 240)
+  if (text === "" || text.indexOf("..") !== -1) return ""
+  if (text.indexOf("owlet-camera.jpg") === -1) return ""
+  if (text.charAt(0) !== "/") return ""
+  return text
+}
+
+function parseCamera(raw) {
+  var unset = emptyCamera()
+  if (!raw || typeof raw !== "object") return unset
+  var source = clean(raw.source, "", 16)
+  if (source !== "url" && source !== "owlet") source = ""
+  var status = clean(raw.status, "", 24)
+  return {
+    present: raw.present === true,
+    id: clean(raw.id, "", 40),
+    name: clean(raw.name, "", 40),
+    status: status,
+    source: source,
+    snapshotPath: safeSnapshotPath(raw.snapshot_path || raw.snapshotPath),
+    error: clean(raw.error, "", 80),
+    fetchedAt: asInt(raw.fetched_at || raw.fetchedAt) || 0,
+    discoveredAt: asInt(raw.discovered_at || raw.discoveredAt) || 0
   }
 }
 
@@ -78,7 +120,8 @@ function parseState(raw) {
       },
       alerts: alerts,
       alertNames: alertNames,
-      alertCount: asInt(data.alert_count) || alertNames.length
+      alertCount: asInt(data.alert_count) || alertNames.length,
+      camera: parseCamera(data.camera)
     }
   } catch (e) {
     return unset
@@ -102,7 +145,13 @@ function statusDetail(state) {
   if (state.error) return state.error
   if (state.status === "charging") return "Vitals pause while the sock charges"
   if (state.status === "sock_off") return "Sock is off the foot"
-  if (state.status === "offline") return "Base station or sock is not connected"
+  if (state.status === "offline") {
+    // Check for base station status in sock connection details
+    if (state.sock && state.sock.connection_status === "offline") {
+      return "Base station is offline"
+    }
+    return "Base station or sock is not connected"
+  }
   if (state.status === "monitoring") {
     if (state.vitals && state.vitals.sleepLabel) return state.vitals.sleepLabel
     return "Sock is reporting"
@@ -238,6 +287,110 @@ function loginIcon() {
   return "󰍂" // nf-md-login
 }
 
+function logoutIcon() {
+  return "󰍃" // nf-md-logout
+}
+
+function refreshIcon() {
+  return "󰑐" // nf-md-refresh
+}
+
+function contextMenuItems(state, version, email, detached, showCamera) {
+  var loggedOut = !state || state.needsLogin === true
+  var cameraOn = (showCamera === undefined || showCamera === null) ? true : asBool(showCamera)
+  var items = []
+  items.push({
+    id: loggedOut ? "login" : "logout",
+    label: loggedOut ? "Sign in" : "Sign out",
+    kind: "action",
+    enabled: true
+  })
+  items.push({
+    id: "refresh",
+    label: "Refresh",
+    kind: "action",
+    enabled: true
+  })
+  items.push({
+    id: cameraOn ? "hide-camera" : "show-camera",
+    label: cameraOn ? "Hide camera" : "Show camera",
+    kind: "action",
+    enabled: true
+  })
+  if (cameraOn) {
+    items.push({
+      id: detached ? "attach" : "detach",
+      label: detached ? "Attach camera" : "Detach camera",
+      kind: "action",
+      enabled: true
+    })
+  }
+  items.push({ id: "separator", label: "", kind: "separator", enabled: false })
+  var ver = clean(version, "", 24)
+  items.push({
+    id: "version",
+    label: ver ? "Omalet " + ver : "Omalet",
+    kind: "meta",
+    enabled: false
+  })
+  var account = clean(email, "", 64)
+  if (account && !loggedOut) {
+    items.push({
+      id: "account",
+      label: account,
+      kind: "meta",
+      enabled: false
+    })
+  }
+  return items
+}
+
+function cameraIcon() {
+  return "󰄀" // nf-md-camera
+}
+
+function showCameraEnabled(settings) {
+  if (!settings || settings.showCamera === undefined || settings.showCamera === null)
+    return true
+  return asBool(settings.showCamera)
+}
+
+function showCameraHero(state, showCameraSetting, hasUrl) {
+  if (!showCameraSetting) return false
+  if (state && state.needsLogin) return false
+  if (hasUrl) return true
+  return !!(state && state.camera && state.camera.present)
+}
+
+function cameraAgeText(fetchedAt, nowSec) {
+  var ts = asInt(fetchedAt)
+  if (!ts) return ""
+  var now = asInt(nowSec)
+  if (!now) now = Math.floor(Date.now() / 1000)
+  var age = now - ts
+  if (age < 0) age = 0
+  if (age < 15) return "just now"
+  if (age < 90) return age + "s ago"
+  var minutes = Math.round(age / 60)
+  if (minutes < 60) return minutes + "m ago"
+  return "stale"
+}
+
+function cameraCaption(state, nowSec, hasUrl) {
+  var camera = state && state.camera ? state.camera : emptyCamera()
+  if (camera.error) return camera.error
+  var name = camera.name || (camera.source === "owlet" ? "Owlet Cam" : "Camera")
+  if (camera.snapshotPath && camera.fetchedAt) {
+    var age = cameraAgeText(camera.fetchedAt, nowSec)
+    return age ? name + " · " + age : name
+  }
+  if (camera.present && !camera.snapshotPath) return name + " · no stills yet"
+  if (hasUrl) return "Waiting for still"
+  if (camera.status === "offline") return name + " · offline"
+  if (camera.status === "none") return "No Owlet Cam on this account"
+  return name
+}
+
 function barLabel(state, vertical) {
   if (!state) return "Owlet"
   if (state.status === "monitoring") {
@@ -260,9 +413,12 @@ if (typeof module !== "undefined") {
   module.exports = {
     clean: clean,
     emptyState: emptyState,
+    emptyCamera: emptyCamera,
     asBool: asBool,
     asInt: asInt,
     parseState: parseState,
+    parseCamera: parseCamera,
+    safeSnapshotPath: safeSnapshotPath,
     statusTitle: statusTitle,
     statusDetail: statusDetail,
     displayNumber: displayNumber,
@@ -276,12 +432,20 @@ if (typeof module !== "undefined") {
     isCharging: isCharging,
     alertList: alertList,
     barLabel: barLabel,
+    showCameraEnabled: showCameraEnabled,
+    showCameraHero: showCameraHero,
+    cameraAgeText: cameraAgeText,
+    cameraCaption: cameraCaption,
     heartIcon: heartIcon,
     airIcon: airIcon,
     batteryIcon: batteryIcon,
     tempIcon: tempIcon,
     moveIcon: moveIcon,
     sleepIcon: sleepIcon,
-    loginIcon: loginIcon
+    loginIcon: loginIcon,
+    logoutIcon: logoutIcon,
+    refreshIcon: refreshIcon,
+    cameraIcon: cameraIcon,
+    contextMenuItems: contextMenuItems
   }
 }

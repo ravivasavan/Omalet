@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ravivasavan.owlet",
   "name": "Omalet",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Ravi Vasavan",
   "license": "MIT",
   "description": "Owlet Smart Sock 3 vitals on the Omarchy bar: heart rate, blood oxygen, battery, skin temperature, movement, sleep, and desktop alerts. Unofficial Owlet cloud API; not a substitute for the Owlet app.",
@@ -12,12 +12,14 @@
   },
   "barWidget": {
     "displayName": "Omalet",
-    "description": "Sock 3 heart rate and oxygen pill with a vitals popup and desktop alerts",
+    "description": "Sock 3 heart rate and oxygen pill with a vitals popup, optional camera still, and desktop alerts",
     "category": "Info",
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "refreshSeconds": 10
+      "refreshSeconds": 10,
+      "showCamera": true,
+      "cameraSnapshotUrl": ""
     },
     "schema": [
       {
@@ -28,6 +30,20 @@
         "max": 60,
         "step": 5,
         "defaultValue": 10
+      },
+      {
+        "key": "showCamera",
+        "type": "boolean",
+        "label": "Show camera still",
+        "description": "Full-width snapshot above the vitals while the panel is open.",
+        "defaultValue": true
+      },
+      {
+        "key": "cameraSnapshotUrl",
+        "type": "string",
+        "label": "Camera snapshot URL",
+        "description": "Optional JPEG URL (go2rtc, Home Assistant camera proxy, or similar). Fetched while the panel is open.",
+        "defaultValue": ""
       }
     ]
   }
