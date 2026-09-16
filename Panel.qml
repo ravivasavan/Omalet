@@ -32,7 +32,7 @@ Panel {
   readonly property color alertColor: Color.urgent
   readonly property string uiFont: bar ? bar.fontFamily : Style.font.family
   readonly property int refreshSeconds: Math.max(5, Math.min(60, parseInt(setting("refreshSeconds", 10), 10) || 10))
-  readonly property bool showCamera: setting("showCamera", true) !== false
+  readonly property bool showCamera: Model.showCameraEnabled(settings)
   readonly property string cameraSnapshotUrl: String(setting("cameraSnapshotUrl", "") || "").replace(/^\s+|\s+$/g, "")
   readonly property bool cameraUrlReady: cameraSnapshotUrl.indexOf("http://") === 0 || cameraSnapshotUrl.indexOf("https://") === 0
   readonly property var camera: state.camera || {}
@@ -106,7 +106,7 @@ Panel {
       root.closeMenu()
       return
     }
-    root.menuItems = Model.contextMenuItems(state, pluginVersion, savedEmail, root.detached)
+    root.menuItems = Model.contextMenuItems(state, pluginVersion, savedEmail, root.detached, root.showCamera)
     if (root.opened) root.controller.hide()
     root.menuOpen = true
   }
@@ -161,13 +161,32 @@ Panel {
     logoutProc.running = true
   }
 
+  function persistSettings(values) {
+    var entry = { id: root.moduleName }
+    for (var existing in root.settings) if (existing !== "id") entry[existing] = root.settings[existing]
+    for (var key in values) entry[key] = values[key]
+    root.settings = entry
+    if (root.hostWidget && "settings" in root.hostWidget) root.hostWidget.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+  }
+
+  function setShowCamera(on) {
+    root.persistSettings({ showCamera: !!on })
+    root.closeMenu()
+    if (!on) root.detached = false
+    else root.refreshCamera()
+  }
+
   function chooseMenu(itemId) {
     if (itemId === "login") root.signIn()
     else if (itemId === "logout") root.signOut()
     else if (itemId === "refresh") {
       root.closeMenu()
       root.refresh()
-    } else if (itemId === "detach") root.detachCamera()
+    } else if (itemId === "hide-camera") root.setShowCamera(false)
+    else if (itemId === "show-camera") root.setShowCamera(true)
+    else if (itemId === "detach") root.detachCamera()
     else if (itemId === "attach") root.attachCamera()
   }
 
@@ -332,6 +351,8 @@ Panel {
     function logout(): void { root.signOut() }
     function detach(): void { root.detachCamera() }
     function attach(): void { root.attachCamera() }
+    function hideCamera(): void { root.setShowCamera(false) }
+    function showCamera(): void { root.setShowCamera(true) }
   }
 
   Item {

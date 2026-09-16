@@ -42,7 +42,8 @@ fetches when the panel opens, then every 15 seconds while it stays open,
 and again on `r` or middle-click. Detach the camera (button on the still,
 or right-click the pill) to float a pinned window that keeps refreshing
 while you work. Nothing is fetched while the panel is closed and the
-camera is attached. `showCamera` hides the tile.
+camera is attached. Right-click **Hide camera** (or set `showCamera` to
+false) to drop the tile from the bento and stop fetching stills.
 
 ## Remove
 
@@ -74,8 +75,8 @@ secret-tool clear service owlet
 | **Alerts** | The matching tile keeps the bento and softly pulses; a notification fires on rising flags |
 
 Left-click the bar pill to open the vitals bento. Right-click opens a menu
-for sign in, sign out, refresh, and the plugin version. Middle-click
-refreshes. `r` refreshes while the panel is focused.
+for sign in, sign out, refresh, show/hide camera, and the plugin version.
+Middle-click refreshes. `r` refreshes while the panel is focused.
 
 ## Dependencies
 

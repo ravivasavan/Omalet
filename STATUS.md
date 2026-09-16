@@ -6,8 +6,10 @@ actually lands in the bento.
 ## What landed on this branch
 
 - Left-click the bar pill opens the vitals bento. Right-click opens a context
-  menu (sign in / sign out, refresh, detach camera, version, account email).
-  Middle-click still refreshes.
+  menu (sign in / sign out, refresh, show/hide camera, detach camera, version,
+  account email). Middle-click still refreshes. Hide camera drops the still
+  from the bento and stops fetching; it writes `showCamera: false` on the
+  bar entry.
 - Sign-out clears the keyring, tokens, alerts, and camera still; keeps the
   saved email.
 - Optional 16:9 camera tile above the bento (`CameraTile.qml`). Detach pops

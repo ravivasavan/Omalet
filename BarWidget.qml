@@ -18,7 +18,7 @@ BarWidget {
     var target = panelLoader.item
     if (!target) return
     if ("bar" in target) target.bar = root.bar
-    if ("settings" in target) target.settings = root.settings
+    if ("settings" in target) target.settings = Qt.binding(function() { return root.settings })
     if ("anchorItem" in target) target.anchorItem = button
     if ("hostWidget" in target) target.hostWidget = root
   }

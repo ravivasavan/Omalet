@@ -295,8 +295,9 @@ function refreshIcon() {
   return "󰑐" // nf-md-refresh
 }
 
-function contextMenuItems(state, version, email, detached) {
+function contextMenuItems(state, version, email, detached, showCamera) {
   var loggedOut = !state || state.needsLogin === true
+  var cameraOn = (showCamera === undefined || showCamera === null) ? true : asBool(showCamera)
   var items = []
   items.push({
     id: loggedOut ? "login" : "logout",
@@ -311,11 +312,19 @@ function contextMenuItems(state, version, email, detached) {
     enabled: true
   })
   items.push({
-    id: detached ? "attach" : "detach",
-    label: detached ? "Attach camera" : "Detach camera",
+    id: cameraOn ? "hide-camera" : "show-camera",
+    label: cameraOn ? "Hide camera" : "Show camera",
     kind: "action",
     enabled: true
   })
+  if (cameraOn) {
+    items.push({
+      id: detached ? "attach" : "detach",
+      label: detached ? "Attach camera" : "Detach camera",
+      kind: "action",
+      enabled: true
+    })
+  }
   items.push({ id: "separator", label: "", kind: "separator", enabled: false })
   var ver = clean(version, "", 24)
   items.push({
@@ -340,8 +349,14 @@ function cameraIcon() {
   return "󰄀" // nf-md-camera
 }
 
+function showCameraEnabled(settings) {
+  if (!settings || settings.showCamera === undefined || settings.showCamera === null)
+    return true
+  return asBool(settings.showCamera)
+}
+
 function showCameraHero(state, showCameraSetting, hasUrl) {
-  if (showCameraSetting === false) return false
+  if (!showCameraSetting) return false
   if (state && state.needsLogin) return false
   if (hasUrl) return true
   return !!(state && state.camera && state.camera.present)
@@ -417,6 +432,7 @@ if (typeof module !== "undefined") {
     isCharging: isCharging,
     alertList: alertList,
     barLabel: barLabel,
+    showCameraEnabled: showCameraEnabled,
     showCameraHero: showCameraHero,
     cameraAgeText: cameraAgeText,
     cameraCaption: cameraCaption,
